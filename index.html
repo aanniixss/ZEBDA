@@ -474,17 +474,10 @@ canvas { display: block; }
           <div class="form-grid">
             <div class="fg"><label>📅 Date</label><input type="date" id="cmd_date"></div>
             <div class="fg"><label>🎨 Produit</label>
-              <select id="cmd_produit">
-                <option value="Epoxy sol">🏠 Epoxy sol</option>
-                <option value="Epoxy ceramic">🏺 Epoxy ceramic</option>
-                <option value="Epoxy bois">🪵 Epoxy bois</option>
-              </select>
+              <select id="cmd_produit"></select>
             </div>
             <div class="fg"><label>📦 Type</label>
-              <select id="cmd_type">
-                <option value="kg">⚖️ kg</option>
-                <option value="Pack complet">📦 Pack complet</option>
-              </select>
+              <select id="cmd_type"></select>
             </div>
             <div class="fg"><label>🔢 Quantité</label><input type="number" id="cmd_qte" min="1" value="1"></div>
             <div class="fg"><label>🗺️ Wilaya</label><select id="cmd_wilaya"></select></div>
@@ -503,9 +496,7 @@ canvas { display: block; }
                 <option value="">— Non spécifié —</option>
                 <option value="Facebook Ads">📘 Facebook Ads</option>
                 <option value="TikTok Ads">🎵 TikTok Ads</option>
-                <option value="Organique">🌱 Organique</option>
-                <option value="Bouche à oreille">💬 Bouche à oreille</option>
-                <option value="Autre">🔗 Autre</option>
+                <option value="Clientèle">👥 Clientèle</option>
               </select>
             </div>
             <div class="fg full"><label>📝 Note (optionnel)</label><textarea id="cmd_note" rows="2" placeholder="Remarques, numéro de suivi..."></textarea></div>
@@ -527,14 +518,40 @@ canvas { display: block; }
               <select id="spo_canal">
                 <option value="Facebook Ads">📘 Facebook Ads</option>
                 <option value="TikTok Ads">🎵 TikTok Ads</option>
-                <option value="Google Ads">🔍 Google Ads</option>
-                <option value="Instagram Ads">📸 Instagram Ads</option>
-                <option value="Autre">🔗 Autre</option>
+                <option value="Clientèle">👥 Clientèle</option>
               </select>
             </div>
             <div class="fg full"><label>📝 Note (optionnel)</label><textarea id="spo_note" rows="2" placeholder="Description de la campagne..."></textarea></div>
           </div>
           <button class="btn-add" onclick="addSponsor()">➕ Ajouter la dépense</button>
+        </div>
+      </div>
+
+      <div class="form-card collapsed" id="panelProduits">
+        <div class="form-card-hdr" onclick="togglePanel('panelProduits','tglProduits')">
+          <div class="form-card-title">🎨 Gérer les produits</div>
+          <button class="form-toggle" id="tglProduits">▶ Déplier</button>
+        </div>
+        <div class="form-body">
+          <div id="produitsList"></div>
+          <div style="display:flex;gap:8px;margin-top:12px;align-items:center">
+            <input type="text" id="newProduit" placeholder="Nouveau produit..." style="flex:1;padding:9px 11px;border-radius:var(--radius-sm);border:1.5px solid var(--border2);font-family:var(--font);font-size:13px;outline:none;background:var(--surface2);color:var(--ink)">
+            <button class="btn-add" style="margin-top:0" onclick="addProduit()">➕ Ajouter</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-card collapsed" id="panelTypes">
+        <div class="form-card-hdr" onclick="togglePanel('panelTypes','tglTypes')">
+          <div class="form-card-title">📦 Gérer les types</div>
+          <button class="form-toggle" id="tglTypes">▶ Déplier</button>
+        </div>
+        <div class="form-body">
+          <div id="typesList"></div>
+          <div style="display:flex;gap:8px;margin-top:12px;align-items:center">
+            <input type="text" id="newType" placeholder="Nouveau type..." style="flex:1;padding:9px 11px;border-radius:var(--radius-sm);border:1.5px solid var(--border2);font-family:var(--font);font-size:13px;outline:none;background:var(--surface2);color:var(--ink)">
+            <button class="btn-add" style="margin-top:0" onclick="addType()">➕ Ajouter</button>
+          </div>
         </div>
       </div>
     </div>
@@ -553,6 +570,7 @@ canvas { display: block; }
         <div class="ct"><div class="ct-hdr"><div class="ct-title">📡 Dépenses par canal</div></div><div id="a-canal"></div></div>
         <div class="ct"><div class="ct-hdr"><div class="ct-title">💰 Profit net mensuel</div></div><div id="a-profit"></div></div>
       </div>
+      <div class="ct" style="margin-bottom:20px"><div class="ct-hdr"><div class="ct-title">💎 Profit net par produit</div></div><div id="a-produit-net"></div></div>
     </div>
 
   </div></div><!-- /content /scroll-area -->
@@ -568,6 +586,63 @@ canvas { display: block; }
    ═══════════════════════════════════════════════════ */
 
 const SK = 'ecom_epoxy_v3';
+const SK_SETTINGS = 'ecom_epoxy_settings';
+
+let settings = { produits: ['Epoxy sol','Epoxy ceramic','Epoxy bois'], types: ['kg','Pack complet'] };
+
+function loadSettings(){
+  try{ const s=JSON.parse(localStorage.getItem(SK_SETTINGS)||'null'); if(s&&s.produits&&s.types) settings=s; } catch(e){}
+}
+function saveSettings(){ localStorage.setItem(SK_SETTINGS,JSON.stringify(settings)); }
+
+function buildProduitSel(){
+  document.getElementById('cmd_produit').innerHTML=settings.produits.map(p=>`<option value="${p}">${p}</option>`).join('');
+}
+function buildTypeSel(){
+  document.getElementById('cmd_type').innerHTML=settings.types.map(t=>`<option value="${t}">${t}</option>`).join('');
+}
+
+function renderProduitManager(){
+  document.getElementById('produitsList').innerHTML=settings.produits.length
+    ? settings.produits.map((p,i)=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:6px">
+        <span style="font-weight:600;color:var(--ink)">${p}</span>
+        <button class="btn-del" onclick="delProduit(${i})">🗑️</button>
+      </div>`).join('')
+    : `<div class="empty"><div class="empty-ico">🎨</div>Aucun produit</div>`;
+}
+function renderTypeManager(){
+  document.getElementById('typesList').innerHTML=settings.types.length
+    ? settings.types.map((t,i)=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:6px">
+        <span style="font-weight:600;color:var(--ink)">${t}</span>
+        <button class="btn-del" onclick="delType(${i})">🗑️</button>
+      </div>`).join('')
+    : `<div class="empty"><div class="empty-ico">📦</div>Aucun type</div>`;
+}
+
+function addProduit(){
+  const v=document.getElementById('newProduit').value.trim();
+  if(!v){toast('⚠️ Nom du produit requis','err');return;}
+  if(settings.produits.includes(v)){toast('⚠️ Produit déjà existant','err');return;}
+  settings.produits.push(v); saveSettings(); buildProduitSel(); renderProduitManager();
+  document.getElementById('newProduit').value=''; toast('✅ Produit ajouté !','ok');
+}
+function delProduit(i){
+  if(!confirm(`🗑️ Supprimer le produit "${settings.produits[i]}" ?`)) return;
+  settings.produits.splice(i,1); saveSettings(); buildProduitSel(); renderProduitManager();
+  toast('🗑️ Produit supprimé','ok');
+}
+function addType(){
+  const v=document.getElementById('newType').value.trim();
+  if(!v){toast('⚠️ Nom du type requis','err');return;}
+  if(settings.types.includes(v)){toast('⚠️ Type déjà existant','err');return;}
+  settings.types.push(v); saveSettings(); buildTypeSel(); renderTypeManager();
+  document.getElementById('newType').value=''; toast('✅ Type ajouté !','ok');
+}
+function delType(i){
+  if(!confirm(`🗑️ Supprimer le type "${settings.types[i]}" ?`)) return;
+  settings.types.splice(i,1); saveSettings(); buildTypeSel(); renderTypeManager();
+  toast('🗑️ Type supprimé','ok');
+}
 
 const WILAYAS = [
   'Adrar','Chlef','Laghouat','Oum El Bouaghi','Batna','Béjaïa','Biskra','Béchar',
@@ -845,6 +920,18 @@ function renderAnalyse() {
   allC.filter(c=>c.sponsor>0).forEach(c=>{const k=c.canal||'Cmd liée';cm[k]=(cm[k]||0)+(c.sponsor||0);});
   document.getElementById('a-canal').innerHTML=mkATable(Object.entries(cm).sort((a,b)=>b[1]-a[1]),Object.values(cm).reduce((a,b)=>a+b,0));
 
+  const ppNet={};
+  allC.forEach(c=>{
+    const p=c.produit||'?';
+    if(!ppNet[p]) ppNet[p]={rev:0,pert:0,cogs:0,net:0};
+    if(c.statut==='Confirmée') ppNet[p].rev+=(c.prix||0);
+    if(c.statut==='Retour') ppNet[p].pert+=(c.perte||0);
+    ppNet[p].cogs+=(c.cogs||0);
+  });
+  Object.values(ppNet).forEach(v=>{ v.net=v.rev-v.pert-v.cogs; });
+  const ppEntries=Object.entries(ppNet).sort((a,b)=>b[1].net-a[1].net);
+  document.getElementById('a-produit-net').innerHTML=mkProfitTable(ppEntries);
+
   document.getElementById('a-profit').innerHTML=`<div class="ct-scroll"><table>
     <thead><tr><th>Mois</th><th>CA Net</th><th>Sponsor</th><th>Profit</th><th>Marge</th></tr></thead>
     <tbody>${MOIS.map((n,i)=>{
@@ -855,6 +942,20 @@ function renderAnalyse() {
         <td class="mn" style="color:var(--blue)">${fDA(mSpo[i])}</td>
         <td class="mn" style="color:${col};font-weight:700">${fDA(p)}</td>
         <td class="mn" style="color:${col}">${mar}</td></tr>`;
+    }).join('')}</tbody></table></div>`;
+}
+
+function mkProfitTable(entries){
+  if(!entries.length) return `<div class="empty"><div class="empty-ico">📭</div>Aucune donnée</div>`;
+  return `<div class="ct-scroll"><table>
+    <thead><tr><th>Produit</th><th>CA confirmé</th><th>COGS</th><th>Pertes</th><th>Profit net</th></tr></thead>
+    <tbody>${entries.map(([k,v])=>{
+      const col=v.net>=0?'var(--emerald)':'var(--rose)';
+      return `<tr><td><b>${k}</b></td>
+        <td class="mn" style="color:var(--amber)">${fDA(v.rev)}</td>
+        <td class="mn" style="color:var(--violet)">${fDA(v.cogs)}</td>
+        <td class="mn" style="color:var(--rose)">${fDA(v.pert)}</td>
+        <td class="mn" style="color:${col};font-weight:700">${fDA(v.net)}</td></tr>`;
     }).join('')}</tbody></table></div>`;
 }
 
@@ -936,7 +1037,8 @@ function refresh(){
 function buildYearSel(){
   const sel=document.getElementById('yearSelector');
   const cur=new Date().getFullYear();
-  const yrs=new Set([cur,cur+1]);
+  const yrs=new Set();
+  for(let y=2020;y<=cur+20;y++) yrs.add(y);
   Object.keys(data).forEach(y=>yrs.add(Number(y)));
   sel.innerHTML=[...yrs].sort((a,b)=>b-a).map(y=>`<option value="${y}" ${y===selYear?'selected':''}>${y}</option>`).join('');
   sel.onchange=()=>{ selYear=Number(sel.value); refresh(); };
@@ -1043,8 +1145,10 @@ function toast(msg,type='ok'){
 
 /* ── Init ─────────────────── */
 function init(){
-  load(); selYear=new Date().getFullYear();
+  load(); loadSettings(); selYear=new Date().getFullYear();
   buildYearSel(); buildMoisSel(); buildWilayas();
+  buildProduitSel(); buildTypeSel();
+  renderProduitManager(); renderTypeManager();
   const t=today();
   ['jourDate','semaineDate','cmd_date','spo_date'].forEach(id=>document.getElementById(id).value=t);
   document.getElementById('topbarDate').textContent=new Date().toLocaleDateString('fr-DZ',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
