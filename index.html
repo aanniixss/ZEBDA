@@ -685,7 +685,7 @@ function stats(cmds, spos) {
   const sc=cmds.reduce((s,c)=>s+(c.sponsor||0),0);
   const sg=spos.reduce((s,sp)=>s+(sp.montant||0),0);
   const spo=sc+sg;
-  const pnet=cnet-spo-cogs;
+  const pnet=cnet-spo;
   const nbt=cmds.length, nbok=ok.length, nbko=ko.length;
   const txr=nbt>0?nbko/nbt*100:0;
   const pan=nbok>0?cab/nbok:0;
@@ -765,7 +765,7 @@ function renderKpis(id,s) {
     mkKpi('❌','Pertes retours',fDA(s.pert),'red',`${s.nbko} retour(s)`),
     mkKpi('📣','Sponsor total',fDA(s.spo),'blue',`Cmds: ${fDA(s.sc)} · Gén: ${fDA(s.sg)}`),
     mkKpi('🏭','COGS total',fDA(s.cogs),'violet','Coût de revient'),
-    mkKpi('💎','Profit net',fDA(s.pnet),s.pnet>=0?'green':'red','CA net − spo − COGS'),
+    mkKpi('💎','Profit net',fDA(s.pnet),s.pnet>=0?'green':'red','CA net − sponsor'),
     mkKpi('📦','Commandes',s.nbt,'ink',`${s.nbok} ✅ · ${s.nbko} ❌`),
     mkKpi('📉','Taux retour',fPct(s.txr),s.txr>25?'red':'green','% non récupérées'),
     mkKpi('🛒','Panier moyen',fDA(s.pan),'amber','Sur confirmées'),
@@ -923,12 +923,11 @@ function renderAnalyse() {
   const ppNet={};
   allC.forEach(c=>{
     const p=c.produit||'?';
-    if(!ppNet[p]) ppNet[p]={rev:0,pert:0,cogs:0,net:0};
+    if(!ppNet[p]) ppNet[p]={rev:0,pert:0,net:0};
     if(c.statut==='Confirmée') ppNet[p].rev+=(c.prix||0);
     if(c.statut==='Retour') ppNet[p].pert+=(c.perte||0);
-    ppNet[p].cogs+=(c.cogs||0);
   });
-  Object.values(ppNet).forEach(v=>{ v.net=v.rev-v.pert-v.cogs; });
+  Object.values(ppNet).forEach(v=>{ v.net=v.rev-v.pert; });
   const ppEntries=Object.entries(ppNet).sort((a,b)=>b[1].net-a[1].net);
   document.getElementById('a-produit-net').innerHTML=mkProfitTable(ppEntries);
 
@@ -948,12 +947,11 @@ function renderAnalyse() {
 function mkProfitTable(entries){
   if(!entries.length) return `<div class="empty"><div class="empty-ico">📭</div>Aucune donnée</div>`;
   return `<div class="ct-scroll"><table>
-    <thead><tr><th>Produit</th><th>CA confirmé</th><th>COGS</th><th>Pertes</th><th>Profit net</th></tr></thead>
+    <thead><tr><th>Produit</th><th>CA confirmé</th><th>Pertes retours</th><th>CA Net produit</th></tr></thead>
     <tbody>${entries.map(([k,v])=>{
       const col=v.net>=0?'var(--emerald)':'var(--rose)';
       return `<tr><td><b>${k}</b></td>
         <td class="mn" style="color:var(--amber)">${fDA(v.rev)}</td>
-        <td class="mn" style="color:var(--violet)">${fDA(v.cogs)}</td>
         <td class="mn" style="color:var(--rose)">${fDA(v.pert)}</td>
         <td class="mn" style="color:${col};font-weight:700">${fDA(v.net)}</td></tr>`;
     }).join('')}</tbody></table></div>`;
